@@ -3,13 +3,9 @@
 #include <linux/kernel.h>
 
 
-/*
-Creacion de un modulo simple de Kernel linux con carga, descarga y mensajes de aviso
-*/
-
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Roberto Hernandez");
-MODULE_DESCRIPTION("Modelo simple de Kernel linux");
+MODULE_AUTHOR("Author");
+MODULE_DESCRIPTION("Modelo simple de Kernel linux para Practica 2 de Sistemas Operativos");
 MODULE_VERSION("0.1");
 
 

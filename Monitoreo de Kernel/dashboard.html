@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SO2 – Monitor de Procesos</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+  /* ── Reset & base ─────────────────────────────────────────── */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg:       #0d1117;
+    --panel:    #161b22;
+    --border:   #30363d;
+    --accent:   #58a6ff;
+    --green:    #3fb950;
+    --yellow:   #d29922;
+    --red:      #f85149;
+    --purple:   #bc8cff;
+    --text:     #c9d1d9;
+    --subtext:  #8b949e;
+    --radius:   10px;
+  }
+  body { background: var(--bg); color: var(--text);
+         font-family: 'Segoe UI', system-ui, sans-serif;
+         min-height: 100vh; }
+
+  /* ── Header ──────────────────────────────────────────────── */
+  header {
+    background: var(--panel);
+    border-bottom: 1px solid var(--border);
+    padding: 1rem 2rem;
+    display: flex; align-items: center; gap: 1rem;
+  }
+  header h1 { font-size: 1.2rem; color: var(--accent); }
+  .status-dot {
+    width: 10px; height: 10px; border-radius: 50%;
+    background: var(--red); margin-left: auto;
+    transition: background .4s;
+  }
+  .status-dot.live { background: var(--green);
+    box-shadow: 0 0 6px var(--green); animation: pulse 2s infinite; }
+  @keyframes pulse {
+    0%,100% { opacity:1; } 50% { opacity:.5; }
+  }
+  #status-text { font-size:.8rem; color: var(--subtext); }
+
+  /* ── Layout ──────────────────────────────────────────────── */
+  main { padding: 1.5rem 2rem; display: flex; flex-direction: column; gap: 1.5rem; }
+
+  /* Stats en la cima */
+  .stats-row { display: grid; grid-template-columns: repeat(4,1fr); gap: 1rem; }
+  .stat-card {
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 1rem 1.2rem;
+  }
+  .stat-card .label { font-size:.75rem; color: var(--subtext); text-transform: uppercase; letter-spacing:.05em; }
+  .stat-card .value { font-size:1.6rem; font-weight:700; margin-top:.2rem; }
+  .stat-card .sub   { font-size:.75rem; color: var(--subtext); margin-top:.1rem; }
+
+  /* Grid de gráficas */
+  .charts-grid { display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    grid-template-rows: auto auto auto;
+    gap: 1.5rem; }
+
+  /* La última gráfica (tabla) ocupa el ancho completo */
+  .full-width { grid-column: 1 / -1; }
+
+  .chart-card {
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 1.2rem;
+  }
+  .chart-card h2 { font-size:.9rem; color: var(--subtext);
+    text-transform: uppercase; letter-spacing:.05em; margin-bottom:1rem; }
+  .chart-wrap { position: relative; height: 220px; }
+
+  /* ── Tabla de procesos ───────────────────────────────────── */
+  table { width:100%; border-collapse: collapse; font-size:.9rem; }
+  th { color: var(--subtext); font-weight:500; text-align:left;
+       padding: .5rem .8rem; border-bottom: 1px solid var(--border); font-size:.8rem; }
+  td { padding: .5rem .8rem; border-bottom: 1px solid var(--border); }
+  tr:last-child td { border-bottom: none; }
+  .mem-bar { display: inline-block; height: 8px; border-radius: 4px;
+    background: var(--accent); vertical-align: middle; margin-right: .4rem; }
+
+  /* ── Consulta de PID ─────────────────────────────────────── */
+  .pid-section {
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 1.2rem;
+  }
+  .pid-section h2 { font-size:.9rem; color: var(--subtext);
+    text-transform: uppercase; letter-spacing:.05em; margin-bottom:1rem; }
+  .pid-row { display: flex; gap: .8rem; align-items: center; }
+  .pid-row input {
+    background: var(--bg); border: 1px solid var(--border); color: var(--text);
+    padding: .5rem .8rem; border-radius: 6px; font-size:.95rem; width: 140px;
+    outline: none; transition: border .2s;
+  }
+  .pid-row input:focus { border-color: var(--accent); }
+  .pid-row button {
+    background: var(--accent); color: #000; border: none;
+    padding: .5rem 1.2rem; border-radius: 6px; font-weight:600;
+    cursor: pointer; font-size:.9rem; transition: opacity .2s;
+  }
+  .pid-row button:hover { opacity: .85; }
+  #pid-result {
+    margin-top: 1rem; font-size:.9rem;
+    background: var(--bg); border-radius: 6px;
+    padding: .8rem 1rem; border: 1px solid var(--border);
+    min-height: 42px; display: none;
+  }
+  #pid-result.show { display: block; }
+  .kv { display: flex; gap: 2rem; flex-wrap: wrap; }
+  .kv span { color: var(--subtext); }
+  .kv strong { color: var(--text); }
+
+  /* ── Footer ──────────────────────────────────────────────── */
+  footer { text-align: center; padding: 1rem; color: var(--subtext); font-size:.75rem; }
+</style>
+</head>
+<body>
+
+<header>
+  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+  <h1>SO2 · Monitor de Procesos en Tiempo Real</h1>
+  <span id="status-text">Conectando…</span>
+  <div class="status-dot" id="dot"></div>
+</header>
+
+<main>
+  <!-- ── Tarjetas de estadísticas ──────────────────────────── -->
+  <div class="stats-row">
+    <div class="stat-card">
+      <div class="label">Memoria usada</div>
+      <div class="value" id="s-used" style="color:var(--red)">–</div>
+      <div class="sub" id="s-used-pct">de 0 MB</div>
+    </div>
+    <div class="stat-card">
+      <div class="label">Memoria libre</div>
+      <div class="value" id="s-free" style="color:var(--green)">–</div>
+      <div class="sub">disponible</div>
+    </div>
+    <div class="stat-card">
+      <div class="label">Swap usada</div>
+      <div class="value" id="s-swap" style="color:var(--yellow)">–</div>
+      <div class="sub" id="s-swap-total">de 0 MB</div>
+    </div>
+    <div class="stat-card">
+      <div class="label">Fallos de página</div>
+      <div class="value" id="s-faults" style="color:var(--purple)">–</div>
+      <div class="sub">mayores acumulados</div>
+    </div>
+  </div>
+
+  <!-- ── Gráficas ──────────────────────────────────────────── -->
+  <div class="charts-grid">
+
+    <!-- 1. Pie: desglose de memoria -->
+    <div class="chart-card">
+      <h2>Desglose de memoria</h2>
+      <div class="chart-wrap"><canvas id="c-mem-pie"></canvas></div>
+    </div>
+
+    <!-- 2. Pie: páginas activas / inactivas -->
+    <div class="chart-card">
+      <h2>Estado de páginas</h2>
+      <div class="chart-wrap"><canvas id="c-pages-pie"></canvas></div>
+    </div>
+
+    <!-- 3. Líneas: evolución memoria física vs swap -->
+    <div class="chart-card">
+      <h2>Evolución de memoria en el tiempo</h2>
+      <div class="chart-wrap"><canvas id="c-mem-line"></canvas></div>
+    </div>
+
+    <!-- 4. Barras: tasa de fallos de página -->
+    <div class="chart-card">
+      <h2>Tasa de fallos de página (Δ por intervalo)</h2>
+      <div class="chart-wrap"><canvas id="c-faults-bar"></canvas></div>
+    </div>
+
+    <!-- 5. Tabla: top procesos (full-width) -->
+    <div class="chart-card full-width">
+      <h2>Procesos con mayor consumo de memoria</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>#</th><th>PID</th><th>Nombre</th>
+            <th>Uso de memoria</th><th>%</th>
+          </tr>
+        </thead>
+        <tbody id="proc-tbody">
+          <tr><td colspan="5" style="color:var(--subtext)">Esperando datos…</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+  </div>
+
+  <!-- ── Consulta por PID ──────────────────────────────────── -->
+  <div class="pid-section">
+    <h2>Consultar proceso por PID (sys_get_process_info)</h2>
+    <div class="pid-row">
+      <input type="number" id="pid-input" placeholder="Ej: 1234" min="1">
+      <button onclick="queryPid()">Consultar</button>
+    </div>
+    <div id="pid-result"></div>
+  </div>
+</main>
+
+<footer>Sistemas Operativos 2 · USAC · Práctica 6 — datos actualizados cada 3 s</footer>
+
+<script>
+/* ══════════════════════════════════════════════════════════════
+   Configuración
+   ══════════════════════════════════════════════════════════════ */
+
+// Si el dashboard se abre desde la máquina host, reemplaza
+// "localhost" con la IP de la VM (ej: "192.168.56.101").
+const API_BASE   = "http://localhost:8080";
+const POLL_MS    = 3000;  // intervalo de polling
+const MAX_POINTS = 20;    // puntos máximos en gráficas de línea/barra
+
+/* ══════════════════════════════════════════════════════════════
+   Estado
+   ══════════════════════════════════════════════════════════════ */
+let prevFaults = { minor: 0, major: 0 };
+const timeLabels  = [];
+const memHistory  = [];   // { used, swap }
+const faultsDelta = [];   // { minor, major } delta por intervalo
+
+/* ══════════════════════════════════════════════════════════════
+   Utilidades
+   ══════════════════════════════════════════════════════════════ */
+const mb = kb => (kb / 1024).toFixed(1) + " MB";
+const now = () => new Date().toLocaleTimeString();
+
+function pushCapped(arr, val) {
+  arr.push(val);
+  if (arr.length > MAX_POINTS) arr.shift();
+}
+
+/* ══════════════════════════════════════════════════════════════
+   Inicialización de Chart.js
+   ══════════════════════════════════════════════════════════════ */
+Chart.defaults.color = "#8b949e";
+Chart.defaults.borderColor = "#30363d";
+
+const PIE_OPTS = {
+  responsive: true, maintainAspectRatio: false,
+  plugins: { legend: { position: "bottom",
+    labels: { boxWidth: 12, padding: 14 } } }
+};
+
+const LINE_OPTS = {
+  responsive: true, maintainAspectRatio: false,
+  animation: false,
+  plugins: { legend: { position: "bottom",
+    labels: { boxWidth: 12, padding: 14 } } },
+  scales: {
+    x: { ticks: { maxTicksLimit: 6 } },
+    y: { beginAtZero: true,
+         ticks: { callback: v => (v/1024).toFixed(0)+" MB" } }
+  }
+};
+
+const BAR_OPTS = {
+  responsive: true, maintainAspectRatio: false,
+  animation: false,
+  plugins: { legend: { position: "bottom",
+    labels: { boxWidth: 12, padding: 14 } } },
+  scales: {
+    x: { ticks: { maxTicksLimit: 6 } },
+    y: { beginAtZero: true }
+  }
+};
+
+/* 1. Pie: desglose de memoria */
+const cMemPie = new Chart(document.getElementById("c-mem-pie"), {
+  type: "pie",
+  data: {
+    labels: ["Usada", "Libre", "Caché"],
+    datasets: [{ data: [0, 0, 0],
+      backgroundColor: ["#f85149","#3fb950","#58a6ff"],
+      borderColor: "#161b22", borderWidth: 2 }]
+  },
+  options: PIE_OPTS
+});
+
+/* 2. Pie: páginas activas / inactivas */
+const cPagesPie = new Chart(document.getElementById("c-pages-pie"), {
+  type: "doughnut",
+  data: {
+    labels: ["Activas", "Inactivas"],
+    datasets: [{ data: [0, 0],
+      backgroundColor: ["#bc8cff","#d29922"],
+      borderColor: "#161b22", borderWidth: 2 }]
+  },
+  options: PIE_OPTS
+});
+
+/* 3. Líneas: memoria en el tiempo */
+const cMemLine = new Chart(document.getElementById("c-mem-line"), {
+  type: "line",
+  data: {
+    labels: timeLabels,
+    datasets: [
+      { label: "Mem. usada (KB)", data: memHistory.map(h=>h.used),
+        borderColor: "#f85149", backgroundColor: "rgba(248,81,73,.12)",
+        fill: true, tension: .3, pointRadius: 2 },
+      { label: "Swap usada (KB)", data: memHistory.map(h=>h.swap),
+        borderColor: "#d29922", backgroundColor: "rgba(210,153,34,.12)",
+        fill: true, tension: .3, pointRadius: 2 }
+    ]
+  },
+  options: LINE_OPTS
+});
+
+/* 4. Barras: fallos de página delta */
+const cFaultsBar = new Chart(document.getElementById("c-faults-bar"), {
+  type: "bar",
+  data: {
+    labels: timeLabels,
+    datasets: [
+      { label: "Fallos menores Δ", data: faultsDelta.map(f=>f.minor),
+        backgroundColor: "rgba(88,166,255,.7)" },
+      { label: "Fallos mayores Δ", data: faultsDelta.map(f=>f.major),
+        backgroundColor: "rgba(248,81,73,.7)" }
+    ]
+  },
+  options: BAR_OPTS
+});
+
+/* ══════════════════════════════════════════════════════════════
+   Actualizar todas las vistas con datos del backend
+   ══════════════════════════════════════════════════════════════ */
+function update(d) {
+  /* ── Tarjetas ─────────────────────────────────────────────── */
+  document.getElementById("s-used").textContent = mb(d.mem_used_kb);
+  document.getElementById("s-used-pct").textContent =
+    `de ${mb(d.mem_total_kb)}`;
+  document.getElementById("s-free").textContent = mb(d.mem_free_kb);
+  document.getElementById("s-swap").textContent = mb(d.swap_used_kb);
+  document.getElementById("s-swap-total").textContent =
+    `de ${mb(d.swap_total_kb)}`;
+  document.getElementById("s-faults").textContent =
+    d.major_faults.toLocaleString();
+
+  /* ── Pie 1: desglose de memoria ───────────────────────────── */
+  cMemPie.data.datasets[0].data = [
+    d.mem_used_kb, d.mem_free_kb, d.mem_cache_kb
+  ];
+  cMemPie.update();
+
+  /* ── Pie 2: páginas ───────────────────────────────────────── */
+  cPagesPie.data.datasets[0].data = [d.pages_active, d.pages_inactive];
+  cPagesPie.update();
+
+  /* ── Líneas: historial ────────────────────────────────────── */
+  const t = now();
+  pushCapped(timeLabels, t);
+  pushCapped(memHistory, { used: d.mem_used_kb, swap: d.swap_used_kb });
+
+  // Reconstruir datasets desde el historial
+  cMemLine.data.labels = [...timeLabels];
+  cMemLine.data.datasets[0].data = memHistory.map(h => h.used);
+  cMemLine.data.datasets[1].data = memHistory.map(h => h.swap);
+  cMemLine.update();
+
+  /* ── Barras: delta de fallos ──────────────────────────────── */
+  const dMinor = Math.max(0, d.minor_faults - prevFaults.minor);
+  const dMajor = Math.max(0, d.major_faults - prevFaults.major);
+  prevFaults = { minor: d.minor_faults, major: d.major_faults };
+  pushCapped(faultsDelta, { minor: dMinor, major: dMajor });
+
+  cFaultsBar.data.labels = [...timeLabels];
+  cFaultsBar.data.datasets[0].data = faultsDelta.map(f => f.minor);
+  cFaultsBar.data.datasets[1].data = faultsDelta.map(f => f.major);
+  cFaultsBar.update();
+
+  /* ── Tabla de procesos ────────────────────────────────────── */
+  const procs = (d.procesos_top || [])
+    .slice()
+    .sort((a, b) => b.mem_percent - a.mem_percent);
+
+  const tbody = document.getElementById("proc-tbody");
+  tbody.innerHTML = procs.map((p, i) => {
+    const barW = Math.min(100, p.mem_percent * 4); // escalar visualmente
+    return `<tr>
+      <td style="color:var(--subtext)">${i+1}</td>
+      <td><code>${p.pid}</code></td>
+      <td><strong>${p.name}</strong></td>
+      <td>
+        <span class="mem-bar" style="width:${barW}px"></span>
+        ${p.mem_percent.toFixed(2)} %
+      </td>
+      <td>
+        <button onclick="fillPid(${p.pid})"
+          style="background:none;border:1px solid var(--border);
+                 color:var(--accent);padding:2px 8px;border-radius:4px;
+                 cursor:pointer;font-size:.8rem">
+          Detalle
+        </button>
+      </td>
+    </tr>`;
+  }).join("") || `<tr><td colspan="5" style="color:var(--subtext)">Sin datos</td></tr>`;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   Polling
+   ══════════════════════════════════════════════════════════════ */
+async function fetchMetrics() {
+  try {
+    const r = await fetch(`${API_BASE}/api/metrics`);
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    const d = await r.json();
+
+    document.getElementById("dot").classList.add("live");
+    document.getElementById("status-text").textContent = "En vivo";
+    update(d);
+  } catch (e) {
+    document.getElementById("dot").classList.remove("live");
+    document.getElementById("status-text").textContent = "Sin conexión";
+  }
+}
+
+fetchMetrics();
+setInterval(fetchMetrics, POLL_MS);
+
+/* ══════════════════════════════════════════════════════════════
+   Consulta por PID
+   ══════════════════════════════════════════════════════════════ */
+function fillPid(pid) {
+  document.getElementById("pid-input").value = pid;
+  queryPid();
+}
+
+async function queryPid() {
+  const pid = document.getElementById("pid-input").value.trim();
+  const box = document.getElementById("pid-result");
+
+  if (!pid) { box.innerHTML = "⚠ Ingresa un PID válido."; box.className="show"; return; }
+
+  box.innerHTML = "Consultando…"; box.className = "show";
+
+  try {
+    const r = await fetch(`${API_BASE}/api/process/${pid}`);
+    const d = await r.json();
+
+    if (d.error) {
+      box.innerHTML = `<span style="color:var(--red)">Error: ${d.error}</span>`;
+    } else {
+      box.innerHTML = `<div class="kv">
+        <div><span>PID</span><br><strong>${d.pid}</strong></div>
+        <div><span>Nombre</span><br><strong>${d.name}</strong></div>
+        <div><span>CPU (seg)</span><br><strong>${d.cpu_time_sec}</strong></div>
+        <div><span>Memoria</span><br><strong>${(d.mem_kb/1024).toFixed(1)} MB</strong></div>
+      </div>`;
+    }
+  } catch (e) {
+    box.innerHTML = `<span style="color:var(--red)">No se pudo conectar al backend.</span>`;
+  }
+}
+
+document.getElementById("pid-input").addEventListener("keydown", e => {
+  if (e.key === "Enter") queryPid();
+});
+</script>
+</body>
+</html>

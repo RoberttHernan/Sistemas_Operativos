@@ -1,8 +1,19 @@
 # Simple Kernel Module en Linux
 
-Este repositorio contiene un ejemplo básico de un módulo para el Kernel de Linux. A continuación se detalla el funcionamiento del código y las instrucciones para compilar, cargar, descargar y limpiar el módulo.
+Este repositorio contiene un ejemplo básico de un módulo para el Kernel de Linux, creado para la practica 2, del curso de Sistemas Operativos 2. A continuación se detalla el funcionamiento del código y las instrucciones para compilar, cargar, descargar y limpiar el módulo.
 
-## Descripción del Código
+## Descripción General
+Esta práctica es un ejemplo educativo de un módulo de kernel de Linux para aprender sobre la programación a nivel de kernel.
+
+## Objetivo de la Práctica
+El objetivo de esta práctica es aprender los fundamentos de la programación de módulos del kernel de Linux, específicamente:
+- Entender la estructura básica de un módulo de kernel
+- Implementar las funciones de inicialización y salida de un módulo
+- Comprender cómo los módulos interactúan con el kernel del sistema
+- Aprender a utilizar herramientas como `insmod`, `rmmod`, y `dmesg` para gestionar módulos
+- Familiarizarse con el sistema de logging del kernel mediante `printk`
+
+## Detalles de Implementación
 
 ### `main.c`
 Este es el archivo fuente del módulo. Contiene las funciones esenciales para su funcionamiento:
@@ -21,10 +32,10 @@ Archivo de configuración para la compilación simplificada:
 
 ## Instrucciones de Uso
 
-Sigue estos pasos para probar el módulo:
+Seguir estos pasos para probar el módulo:
 
 ### 1. Compilar el Módulo
-Abre una terminal en el directorio del proyecto y ejecuta:
+Abrir una terminal en el directorio del proyecto y ejecuta:
 ```bash
 make all
 ```
@@ -41,7 +52,7 @@ Para confirmar que el módulo imprimió el mensaje de carga:
 ```bash
 sudo dmesg | tail
 ```
-Deberías ver: `Modulo cargado exitosamente`
+Se deberia ver: `Modulo cargado exitosamente`
 
 ### 4. Verificar que el módulo está cargado
 Para listar el módulo y confirmar que está activo:
@@ -57,7 +68,7 @@ sudo rmmod main
 ```
 
 ### 6. Verificar la descarga
-Verifica nuevamente los mensajes del kernel para confirmar la salida:
+Verificar nuevamente los mensajes del kernel para confirmar la salida:
 ```bash
 sudo dmesg | tail
 ```
