@@ -160,3 +160,11 @@ sudo ./monitor_daemon       # Terminal 2
 - The Linux Kernel documentation — <https://www.kernel.org/doc/html/latest/>
 - Adding a New System Call — <https://www.kernel.org/doc/html/latest/process/adding-syscalls.html>
 - Kernel Newbies — <https://kernelnewbies.org/KernelHacking>
+
+## Proyecto destacado: MonitorDeKernel
+
+- Carpeta: [MonitorDeKernel](MonitorDeKernel)
+- Descripción: Suite académica que combina syscalls personalizados, un daemon en C que expone un API HTTP para métricas y cuarentena, y un dashboard web para visualización en tiempo real. Está diseñada como práctica integradora para monitoreo y respuesta en espacio de usuario y kernel.
+- Contenido clave: `Kernel/` (syscalls), `ProgramaIntermedio/` (daemon C), `Dashboard/` (frontend), `Docs/` y `Test/`.
+
+Consulta el README dentro de la carpeta [MonitorDeKernel](MonitorDeKernel) para instrucciones detalladas de compilación y seguridad.

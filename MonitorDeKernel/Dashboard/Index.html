@@ -1,0 +1,1086 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KernelGuard — Monitor de Seguridad</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap');
+
+:root {
+  --bg:       #f8f9fa;
+  --surface:  #ffffff;
+  --border:   #e9ecef;
+  --text:     #212529;
+  --text-2:   #6c757d;
+  --text-3:   #adb5bd;
+  --primary:  #2563eb;
+  --green:    #16a34a;
+  --yellow:   #ca8a04;
+  --red:      #dc2626;
+  --orange:   #ea580c;
+  --blue-l:   #eff6ff;
+  --green-l:  #f0fdf4;
+  --yellow-l: #fefce8;
+  --red-l:    #fef2f2;
+  --radius:   8px;
+  --shadow:   0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);
+}
+
+* { margin:0; padding:0; box-sizing:border-box; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Inter', -apple-system, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+/* ── LOGIN ── */
+#login-screen {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg);
+}
+
+.login-box {
+  width: 360px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 2.5rem 2rem;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.06);
+}
+
+.login-logo {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 0.25rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.login-logo svg { color: var(--primary); }
+
+.login-sub {
+  font-size: 0.8rem;
+  color: var(--text-2);
+  margin-bottom: 2rem;
+}
+
+.field-wrap { margin-bottom: 1rem; }
+
+.field-label {
+  display: block;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--text);
+  margin-bottom: 0.4rem;
+}
+
+input[type="text"],
+input[type="password"],
+input[type="number"] {
+  width: 100%;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-family: 'Inter', sans-serif;
+  font-size: 0.9rem;
+  padding: 0.6rem 0.85rem;
+  border-radius: var(--radius);
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+input:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(37,99,235,0.1);
+}
+
+.login-btn {
+  width: 100%;
+  background: var(--primary);
+  border: none;
+  color: #fff;
+  font-family: 'Inter', sans-serif;
+  font-size: 0.875rem;
+  font-weight: 500;
+  padding: 0.65rem;
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: background 0.15s;
+  margin-top: 0.5rem;
+}
+
+.login-btn:hover { background: #1d4ed8; }
+
+.login-error {
+  font-size: 0.78rem;
+  color: var(--red);
+  margin-top: 0.75rem;
+  min-height: 1.2em;
+  text-align: center;
+}
+
+/* ── APP ── */
+#app { display: none; min-height: 100vh; }
+
+header {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 0 1.5rem;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.h-brand {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.h-brand-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--green);
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%,100% { opacity: 1; }
+  50%     { opacity: 0.4; }
+}
+
+.h-right {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 0.8rem;
+  color: var(--text-2);
+}
+
+.badge {
+  padding: 0.2rem 0.6rem;
+  border-radius: 99px;
+  font-size: 0.72rem;
+  font-weight: 500;
+}
+
+.badge-admin { background: var(--blue-l);  color: var(--primary); }
+.badge-user  { background: var(--green-l); color: var(--green); }
+
+.threat-pill {
+  display: none;
+  background: var(--red-l);
+  color: var(--red);
+  padding: 0.2rem 0.7rem;
+  border-radius: 99px;
+  font-size: 0.72rem;
+  font-weight: 500;
+  animation: fade 1.5s infinite;
+}
+
+@keyframes fade { 0%,100%{opacity:1} 50%{opacity:0.5} }
+
+.logout-btn {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-2);
+  font-family: 'Inter', sans-serif;
+  font-size: 0.78rem;
+  padding: 0.35rem 0.8rem;
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.logout-btn:hover { border-color: var(--red); color: var(--red); }
+
+/* ── NAV ── */
+nav {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 0 1.5rem;
+  display: flex;
+  gap: 0;
+  overflow-x: auto;
+}
+
+.nav-tab {
+  padding: 0.85rem 1rem;
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: var(--text-2);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  white-space: nowrap;
+  transition: color 0.15s, border-color 0.15s;
+}
+.nav-tab:hover  { color: var(--text); }
+.nav-tab.active { color: var(--primary); border-bottom-color: var(--primary); }
+
+/* ── CONTENT ── */
+.section { display: none; padding: 1.5rem; max-width: 1280px; margin: 0 auto; }
+.section.active { display: block; }
+
+/* ── STAT ROW ── */
+.stat-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.stat-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.25rem;
+  box-shadow: var(--shadow);
+}
+
+.s-label {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--text-2);
+  margin-bottom: 0.5rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.s-val {
+  font-size: 1.75rem;
+  font-weight: 600;
+  color: var(--text);
+  line-height: 1;
+}
+
+.s-unit {
+  font-size: 0.75rem;
+  color: var(--text-3);
+  margin-top: 0.25rem;
+}
+
+.s-accent-blue   { border-top: 3px solid var(--primary); }
+.s-accent-green  { border-top: 3px solid var(--green); }
+.s-accent-yellow { border-top: 3px solid var(--yellow); }
+.s-accent-orange { border-top: 3px solid var(--orange); }
+
+/* ── PANELS ── */
+.chart-grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.25rem;
+  box-shadow: var(--shadow);
+  margin-bottom: 1rem;
+}
+
+.panel-hdr {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 1rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.chart-h180 { height: 180px; position: relative; }
+.chart-h220 { height: 220px; position: relative; }
+
+/* ── TABLE ── */
+table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+thead tr { border-bottom: 1px solid var(--border); }
+th {
+  text-align: left;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text-2);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+td { padding: 0.6rem 0.75rem; border-bottom: 1px solid var(--border); color: var(--text); }
+tbody tr:last-child td { border-bottom: none; }
+tbody tr:hover { background: var(--bg); }
+
+.bar-cell { width: 80px; }
+.mem-bar  { height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; }
+.mem-bar-fill { height: 100%; background: var(--primary); border-radius: 2px; transition: width 0.4s; }
+
+/* ── ALERTS ── */
+.alert-list { display: flex; flex-direction: column; gap: 0.5rem; }
+
+.alert-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.85rem 1rem;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.alert-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  margin-top: 0.35rem;
+  flex-shrink: 0;
+}
+
+.alert-body  { flex: 1; }
+.alert-type  { font-size: 0.7rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.15rem; }
+.alert-desc  { font-size: 0.82rem; color: var(--text); margin-bottom: 0.15rem; }
+.alert-time  { font-size: 0.72rem; color: var(--text-3); }
+
+.sev-badge {
+  padding: 0.15rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.68rem;
+  font-weight: 600;
+  flex-shrink: 0;
+  align-self: flex-start;
+}
+
+.sev-LOW    { background: var(--green-l);  color: var(--green);  }
+.sev-MEDIUM { background: var(--yellow-l); color: var(--yellow); }
+.sev-HIGH   { background: var(--red-l);    color: var(--red);    }
+
+/* ── FILE STATUS ── */
+.status-chip {
+  display: inline-block;
+  padding: 0.15rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  font-weight: 600;
+}
+.status-limpio     { background: var(--green-l);  color: var(--green); }
+.status-modificado { background: var(--yellow-l); color: var(--yellow); }
+.status-sospechoso { background: var(--red-l);    color: var(--red); }
+
+/* ── THREAT CARD ── */
+.threat-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.25rem;
+  margin-bottom: 0.75rem;
+  box-shadow: var(--shadow);
+}
+
+.threat-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+}
+
+.threat-name { font-size: 0.95rem; font-weight: 600; color: var(--text); }
+
+.threat-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+}
+
+.threat-field-lbl { font-size: 0.7rem; font-weight: 500; color: var(--text-2); margin-bottom: 0.2rem; }
+.threat-field-val { font-size: 0.82rem; color: var(--text); }
+
+/* ── ADMIN ── */
+.ctrl-row {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.btn {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-family: 'Inter', sans-serif;
+  font-size: 0.82rem;
+  font-weight: 500;
+  padding: 0.5rem 1rem;
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: all 0.15s;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.btn:hover { background: var(--bg); }
+
+.btn-primary { background: var(--primary); border-color: var(--primary); color: #fff; }
+.btn-primary:hover { background: #1d4ed8; }
+
+.btn-danger { background: var(--red-l); border-color: #fca5a5; color: var(--red); }
+.btn-danger:hover { background: #fee2e2; }
+
+.btn-success { background: var(--green-l); border-color: #86efac; color: var(--green); }
+.btn-success:hover { background: #dcfce7; }
+
+.scan-status {
+  font-size: 0.78rem;
+  color: var(--text-2);
+  padding: 0.4rem 0.75rem;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.pid-row { display: flex; gap: 0.75rem; align-items: center; }
+
+input[type="number"] { width: 140px; }
+
+.proc-result-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.proc-field {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.75rem 1rem;
+}
+
+.proc-field-lbl { font-size: 0.7rem; font-weight: 500; color: var(--text-2); margin-bottom: 0.25rem; }
+.proc-field-val { font-size: 1rem; font-weight: 600; color: var(--text); }
+
+/* ── UTILS ── */
+.section-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+}
+
+.section-title {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.section-sub {
+  font-size: 0.78rem;
+  color: var(--text-2);
+  margin-top: 0.1rem;
+}
+
+.err { color: var(--red); font-size: 0.78rem; margin-top: 0.5rem; }
+
+.empty-msg {
+  text-align: center;
+  color: var(--text-3);
+  padding: 2.5rem 1rem;
+  font-size: 0.85rem;
+}
+
+.hidden { display: none !important; }
+
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login-screen">
+  <div class="login-box">
+    <div class="login-logo">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+      </svg>
+      KernelGuard
+    </div>
+    <div class="login-sub">Sistema de Monitoreo y Seguridad — SO2 USAC</div>
+
+    <div class="field-wrap">
+      <label class="field-label">Usuario</label>
+      <input type="text" id="l-user" placeholder="nombre de usuario" autocomplete="off">
+    </div>
+    <div class="field-wrap">
+      <label class="field-label">Contraseña</label>
+      <input type="password" id="l-pass" placeholder="••••••••">
+    </div>
+    <button class="login-btn" onclick="doLogin()">Iniciar sesión</button>
+    <div class="login-error" id="l-err"></div>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app">
+  <header>
+    <div class="h-brand">
+      <div class="h-brand-dot"></div>
+      KernelGuard
+    </div>
+    <div class="h-right">
+      <span id="h-time" style="color:var(--text-3)">--:--:--</span>
+      <span id="threat-pill" class="threat-pill">⚠ <span id="threat-count">0</span> amenaza(s)</span>
+      <span id="h-user-badge" class="badge badge-admin">Admin</span>
+      <button class="logout-btn" onclick="doLogout()">Cerrar sesión</button>
+    </div>
+  </header>
+
+  <nav>
+    <div class="nav-tab active" onclick="goTab('metrics', this)">Métricas</div>
+    <div class="nav-tab" onclick="goTab('alerts',  this)">Alertas <span id="alert-badge" style="color:var(--text-3)"></span></div>
+    <div class="nav-tab" onclick="goTab('files',   this)">Archivos</div>
+    <div class="nav-tab" onclick="goTab('threats', this)">Amenazas <span id="threat-badge" style="color:var(--red)"></span></div>
+    <div class="nav-tab" id="tab-admin" style="display:none" onclick="goTab('admin', this)">Administración</div>
+  </nav>
+
+  <!-- MÉTRICAS -->
+  <div class="section active" id="sec-metrics">
+    <div class="stat-row">
+      <div class="stat-card s-accent-blue">
+        <div class="s-label">Memoria Usada</div>
+        <div class="s-val" id="s-used">—</div>
+        <div class="s-unit">MB</div>
+      </div>
+      <div class="stat-card s-accent-green">
+        <div class="s-label">Memoria Libre</div>
+        <div class="s-val" id="s-free">—</div>
+        <div class="s-unit">MB</div>
+      </div>
+      <div class="stat-card s-accent-yellow">
+        <div class="s-label">Swap Usada</div>
+        <div class="s-val" id="s-swap">—</div>
+        <div class="s-unit">MB</div>
+      </div>
+      <div class="stat-card s-accent-orange">
+        <div class="s-label">Páginas Activas</div>
+        <div class="s-val" id="s-pages">—</div>
+        <div class="s-unit">páginas</div>
+      </div>
+    </div>
+
+    <div class="chart-grid-2">
+      <div class="panel" style="margin-bottom:0">
+        <div class="panel-hdr">Desglose de Memoria</div>
+        <div class="chart-h180"><canvas id="c-pie-mem"></canvas></div>
+      </div>
+      <div class="panel" style="margin-bottom:0">
+        <div class="panel-hdr">Estado de Páginas</div>
+        <div class="chart-h180"><canvas id="c-pie-pages"></canvas></div>
+      </div>
+    </div>
+
+    <br>
+
+    <div class="chart-grid-2">
+      <div class="panel" style="margin-bottom:0">
+        <div class="panel-hdr">RAM vs Swap — Tiempo Real</div>
+        <div class="chart-h220"><canvas id="c-line-mem"></canvas></div>
+      </div>
+      <div class="panel" style="margin-bottom:0">
+        <div class="panel-hdr">Tasa de Fallos de Página</div>
+        <div class="chart-h220"><canvas id="c-bar-faults"></canvas></div>
+      </div>
+    </div>
+
+    <br>
+
+    <div class="panel">
+      <div class="panel-hdr">Top 10 Procesos por Consumo de Memoria</div>
+      <table>
+        <thead><tr>
+          <th>#</th><th>PID</th><th>Proceso</th>
+          <th>Memoria (KB)</th><th>% Mem</th><th>Uso</th>
+        </tr></thead>
+        <tbody id="proc-tbody">
+          <tr><td colspan="6" class="empty-msg">Cargando datos...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ALERTAS -->
+  <div class="section" id="sec-alerts">
+    <div class="section-bar">
+      <div>
+        <div class="section-title">Alertas de Seguridad</div>
+        <div class="section-sub">Ordenadas por más recientes primero</div>
+      </div>
+      <button class="btn" onclick="fetchAlerts()">↺ Actualizar</button>
+    </div>
+    <div class="alert-list" id="alert-list">
+      <div class="empty-msg">Cargando alertas...</div>
+    </div>
+  </div>
+
+  <!-- ARCHIVOS -->
+  <div class="section" id="sec-files">
+    <div class="section-bar">
+      <div>
+        <div class="section-title">Archivos Analizados</div>
+        <div class="section-sub">Directorio monitoreado en tiempo real</div>
+      </div>
+      <button class="btn" onclick="fetchFiles()">↺ Actualizar</button>
+    </div>
+    <div class="panel">
+      <table>
+        <thead><tr>
+          <th>Ruta</th><th>Estado</th><th>Hash SHA-256 (parcial)</th><th>Última Modificación</th>
+        </tr></thead>
+        <tbody id="files-tbody">
+          <tr><td colspan="4" class="empty-msg">Sin archivos monitoreados</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- AMENAZAS -->
+  <div class="section" id="sec-threats">
+    <div class="section-bar">
+      <div>
+        <div class="section-title">Amenazas Detectadas</div>
+        <div class="section-sub">Coincidencias con la base de datos de firmas maliciosas</div>
+      </div>
+      <button class="btn" onclick="fetchThreats()">↺ Actualizar</button>
+    </div>
+    <div id="threats-container">
+      <div class="empty-msg">No se han detectado amenazas</div>
+    </div>
+  </div>
+
+  <!-- ADMIN -->
+  <div class="section" id="sec-admin">
+
+    <div class="panel">
+      <div class="panel-hdr">Control de Escaneo</div>
+      <div class="ctrl-row">
+        <button class="btn btn-success" onclick="scanControl('start')">
+          ▶ Activar Escaneo
+        </button>
+        <button class="btn btn-danger" onclick="scanControl('stop')">
+          ■ Detener Escaneo
+        </button>
+        <div class="scan-status" id="scan-status">Estado desconocido</div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-hdr">Consulta de Proceso por PID</div>
+      <div class="pid-row">
+        <input type="number" id="pid-in" placeholder="Ingresa un PID" min="1">
+        <button class="btn btn-primary" onclick="lookupPID()">Consultar</button>
+      </div>
+      <div id="pid-err" class="err hidden"></div>
+      <div id="pid-result" class="proc-result-grid hidden">
+        <div class="proc-field">
+          <div class="proc-field-lbl">PID</div>
+          <div class="proc-field-val" id="r-pid">—</div>
+        </div>
+        <div class="proc-field">
+          <div class="proc-field-lbl">Nombre</div>
+          <div class="proc-field-val" id="r-name">—</div>
+        </div>
+        <div class="proc-field">
+          <div class="proc-field-lbl">CPU Time</div>
+          <div class="proc-field-val" id="r-cpu">—</div>
+        </div>
+        <div class="proc-field">
+          <div class="proc-field-lbl">Memoria</div>
+          <div class="proc-field-val" id="r-mem">—</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-hdr">Archivos en Cuarentena</div>
+      <table>
+        <thead><tr><th>Ruta del Archivo</th><th>Fecha de Cuarentena</th><th>Acción</th></tr></thead>
+        <tbody id="qlist-tbody">
+          <tr><td colspan="3" class="empty-msg">No hay archivos en cuarentena</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script>
+const BASE    = 'http://192.168.0.25:8080';
+const REFRESH = 5000;
+let token = null, isAdmin = false, timer = null;
+
+// ── AUTH ──
+async function doLogin() {
+  const user  = document.getElementById('l-user').value.trim();
+  const pass  = document.getElementById('l-pass').value;
+  const errEl = document.getElementById('l-err');
+  errEl.textContent = '';
+  if (!user || !pass) { errEl.textContent = 'Ingresa usuario y contraseña'; return; }
+  try {
+    const res = await fetch(`${BASE}/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: user, password: pass })
+    });
+    const d = await res.json();
+    if (d.error) { errEl.textContent = d.error; return; }
+    token   = d.token;
+    isAdmin = d.rol === 'admin';
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('app').style.display          = 'block';
+    document.getElementById('h-user-badge').textContent   = isAdmin ? 'Admin' : 'Usuario';
+    document.getElementById('h-user-badge').className     = 'badge ' + (isAdmin ? 'badge-admin' : 'badge-user');
+    if (isAdmin) document.getElementById('tab-admin').style.display = 'block';
+    initCharts();
+    startPolling();
+  } catch(e) {
+    errEl.textContent = 'No se pudo conectar al daemon en ' + BASE;
+  }
+}
+
+function doLogout() {
+  token = null; isAdmin = false; clearInterval(timer);
+  document.getElementById('app').style.display          = 'none';
+  document.getElementById('login-screen').style.display = 'flex';
+  document.getElementById('l-pass').value               = '';
+  document.getElementById('l-err').textContent          = '';
+}
+
+document.getElementById('l-pass').addEventListener('keydown', e => {
+  if (e.key === 'Enter') doLogin();
+});
+
+// ── TABS ──
+function goTab(name, el) {
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('sec-' + name).classList.add('active');
+  if (name === 'alerts')  fetchAlerts();
+  if (name === 'files')   fetchFiles();
+  if (name === 'threats') fetchThreats();
+  if (name === 'admin')   fetchAdmin();
+}
+
+// ── CHARTS ──
+const CD = {
+  responsive: true,
+  maintainAspectRatio: false,
+  plugins: {
+    legend: {
+      labels: { color: '#6c757d', font: { family: 'Inter', size: 11 }, padding: 16 }
+    }
+  }
+};
+
+const scaleOpts = {
+  x: { ticks: { color: '#adb5bd', font: { size: 10 } }, grid: { color: '#f1f3f5' } },
+  y: { ticks: { color: '#adb5bd', font: { size: 10 } }, grid: { color: '#f1f3f5' } }
+};
+
+let cPieMem, cPiePages, cLineMem, cBarFaults;
+const timeLabels=[], memHist=[], swapHist=[];
+const faultLabels=[], fMinor=[], fMajor=[];
+let prevMinor=0, prevMajor=0;
+const MAX_PTS = 20;
+
+function initCharts() {
+  cPieMem = new Chart(document.getElementById('c-pie-mem'), {
+    type: 'doughnut',
+    data: {
+      labels: ['Usada', 'Libre', 'Cache'],
+      datasets: [{
+        data: [0,0,0],
+        backgroundColor: ['#2563eb','#16a34a','#0891b2'],
+        borderColor: '#fff',
+        borderWidth: 2
+      }]
+    },
+    options: { ...CD, cutout: '65%' }
+  });
+
+  cPiePages = new Chart(document.getElementById('c-pie-pages'), {
+    type: 'doughnut',
+    data: {
+      labels: ['Activas', 'Inactivas'],
+      datasets: [{
+        data: [0,0],
+        backgroundColor: ['#ea580c','#f97316'],
+        borderColor: '#fff',
+        borderWidth: 2
+      }]
+    },
+    options: { ...CD, cutout: '65%' }
+  });
+
+  cLineMem = new Chart(document.getElementById('c-line-mem'), {
+    type: 'line',
+    data: {
+      labels: timeLabels,
+      datasets: [
+        { label: 'RAM (MB)',  data: memHist,  borderColor: '#2563eb', backgroundColor: 'rgba(37,99,235,0.06)', tension: 0.4, fill: true, pointRadius: 2 },
+        { label: 'Swap (MB)', data: swapHist, borderColor: '#ea580c', backgroundColor: 'rgba(234,88,12,0.05)',  tension: 0.4, fill: true, pointRadius: 2 }
+      ]
+    },
+    options: { ...CD, scales: scaleOpts }
+  });
+
+  cBarFaults = new Chart(document.getElementById('c-bar-faults'), {
+    type: 'bar',
+    data: {
+      labels: faultLabels,
+      datasets: [
+        { label: 'Menores', data: fMinor, backgroundColor: 'rgba(22,163,74,0.5)',  borderColor: '#16a34a', borderWidth: 1 },
+        { label: 'Mayores', data: fMajor, backgroundColor: 'rgba(220,38,38,0.45)', borderColor: '#dc2626', borderWidth: 1 }
+      ]
+    },
+    options: { ...CD, scales: scaleOpts }
+  });
+}
+
+function push(arr, v) { arr.push(v); if (arr.length > MAX_PTS) arr.shift(); }
+function nowLbl() { return new Date().toLocaleTimeString('es', { hour12: false }); }
+
+// ── API ──
+async function api(path, opts={}) {
+  const res = await fetch(BASE + path, {
+    ...opts,
+    headers: { 'Authorization': token, 'Content-Type': 'application/json', ...opts.headers }
+  });
+  return res.json();
+}
+
+// ── METRICS ──
+async function fetchMetrics() {
+  try {
+    const d = await api('/metrics');
+    if (d.error) return;
+
+    document.getElementById('s-used').textContent  = Math.round(d.memoria_usada  / 1024);
+    document.getElementById('s-free').textContent  = Math.round(d.memoria_libre  / 1024);
+    document.getElementById('s-swap').textContent  = Math.round(d.swap_usada     / 1024);
+    document.getElementById('s-pages').textContent = Number(d.paginas_activas).toLocaleString();
+
+    cPieMem.data.datasets[0].data = [
+      Math.round(d.memoria_usada/1024),
+      Math.round(d.memoria_libre/1024),
+      Math.round(d.memoria_cache/1024)
+    ];
+    cPieMem.update();
+
+    cPiePages.data.datasets[0].data = [d.paginas_activas, d.paginas_inactivas];
+    cPiePages.update();
+
+    const t = nowLbl();
+    push(timeLabels, t);
+    push(memHist,  Math.round(d.memoria_usada / 1024));
+    push(swapHist, Math.round(d.swap_usada    / 1024));
+    cLineMem.update();
+
+    const dm = Math.max(0, d.fallos_menores - prevMinor);
+    const dM = Math.max(0, d.fallos_mayores - prevMajor);
+    prevMinor = d.fallos_menores; prevMajor = d.fallos_mayores;
+    push(faultLabels, t); push(fMinor, dm); push(fMajor, dM);
+    cBarFaults.update();
+
+    if (d.procesos_top?.length) {
+      document.getElementById('proc-tbody').innerHTML = d.procesos_top.map((p, i) => `
+        <tr>
+          <td style="color:var(--text-3)">${i+1}</td>
+          <td><code style="font-size:0.78rem;color:var(--primary)">${p.pid}</code></td>
+          <td style="font-weight:500">${p.nombre}</td>
+          <td>${p.mem_kb.toLocaleString()}</td>
+          <td style="color:var(--yellow)">${p.mem_pct.toFixed(2)}%</td>
+          <td class="bar-cell">
+            <div class="mem-bar">
+              <div class="mem-bar-fill" style="width:${Math.min(p.mem_pct*5,100)}%"></div>
+            </div>
+          </td>
+        </tr>`).join('');
+    }
+
+    document.getElementById('h-time').textContent = nowLbl();
+  } catch(e) {}
+}
+
+// ── ALERTS ──
+async function fetchAlerts() {
+  try {
+    const d = await api('/alerts');
+    if (!Array.isArray(d)) return;
+    document.getElementById('alert-badge').textContent = d.length ? `(${d.length})` : '';
+    const list = document.getElementById('alert-list');
+    if (d.length === 0) {
+      list.innerHTML = '<div class="empty-msg">No hay alertas registradas</div>';
+      return;
+    }
+    const dotColor = { LOW: '#16a34a', MEDIUM: '#ca8a04', HIGH: '#dc2626' };
+    list.innerHTML = d.map(a => `
+      <div class="alert-item">
+        <div class="alert-dot" style="background:${dotColor[a.severidad]||'#adb5bd'}"></div>
+        <div class="alert-body">
+          <div class="alert-type" style="color:${dotColor[a.severidad]||'#adb5bd'}">${a.tipo}</div>
+          <div class="alert-desc">${a.descripcion}</div>
+          <div class="alert-time">${new Date(a.timestamp*1000).toLocaleString('es')}</div>
+        </div>
+        <span class="sev-badge sev-${a.severidad}">${a.severidad}</span>
+      </div>`).join('');
+  } catch(e) {}
+}
+
+// ── FILES ──
+async function fetchFiles() {
+  try {
+    const d = await api('/files');
+    if (!Array.isArray(d)) return;
+    const tbody = document.getElementById('files-tbody');
+    if (d.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="4" class="empty-msg">Sin archivos monitoreados aún</td></tr>';
+      return;
+    }
+    tbody.innerHTML = d.map(f => `
+      <tr>
+        <td style="font-family:monospace;font-size:0.78rem">${f.path}</td>
+        <td><span class="status-chip status-${f.estado}">${f.estado}</span></td>
+        <td style="font-family:monospace;font-size:0.72rem;color:var(--text-2)">${f.hash.substring(0,20)}…</td>
+        <td style="color:var(--text-2)">${new Date(f.timestamp*1000).toLocaleString('es')}</td>
+      </tr>`).join('');
+  } catch(e) {}
+}
+
+// ── THREATS ──
+async function fetchThreats() {
+  try {
+    const d = await api('/threats');
+    if (!Array.isArray(d)) return;
+
+    document.getElementById('threat-badge').textContent = d.length ? `(${d.length})` : '';
+    const pill = document.getElementById('threat-pill');
+    document.getElementById('threat-count').textContent = d.length;
+    pill.style.display = d.length > 0 ? 'inline-block' : 'none';
+
+    const container = document.getElementById('threats-container');
+    if (d.length === 0) {
+      container.innerHTML = '<div class="empty-msg">No se han detectado amenazas</div>';
+      return;
+    }
+
+    const sevClass = { LOW: 'sev-LOW', MEDIUM: 'sev-MEDIUM', HIGH: 'sev-HIGH' };
+
+    container.innerHTML = d.map(t => `
+      <div class="threat-card">
+        <div class="threat-header">
+          <div class="threat-name">${t.nombre}</div>
+          <span class="sev-badge ${sevClass[t.severidad]||'sev-HIGH'}">${t.severidad}</span>
+        </div>
+        <div class="threat-grid">
+          <div>
+            <div class="threat-field-lbl">Archivo afectado</div>
+            <div class="threat-field-val" style="font-family:monospace;font-size:0.78rem">${t.archivo}</div>
+          </div>
+          <div>
+            <div class="threat-field-lbl">Descripción</div>
+            <div class="threat-field-val">${t.descripcion}</div>
+          </div>
+          <div>
+            <div class="threat-field-lbl">Hash SHA-256</div>
+            <div class="threat-field-val" style="font-family:monospace;font-size:0.72rem;color:var(--text-2)">${t.hash.substring(0,32)}…</div>
+          </div>
+          <div>
+            <div class="threat-field-lbl">Detectado</div>
+            <div class="threat-field-val" style="color:var(--text-2)">${new Date(t.timestamp*1000).toLocaleString('es')}</div>
+          </div>
+        </div>
+      </div>`).join('');
+  } catch(e) {}
+}
+
+// ── ADMIN ──
+async function fetchAdmin() {
+  if (!isAdmin) return;
+  try {
+    const d = await api('/quarantine');
+    const tbody = document.getElementById('qlist-tbody');
+    if (!Array.isArray(d) || d.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="3" class="empty-msg">No hay archivos en cuarentena</td></tr>';
+      return;
+    }
+    tbody.innerHTML = d.map(q => `
+      <tr>
+        <td style="font-family:monospace;font-size:0.78rem;color:var(--red)">${q.path}</td>
+        <td style="color:var(--text-2)">${new Date(q.timestamp*1000).toLocaleString('es')}</td>
+        <td><button class="btn btn-success" onclick="restoreFile('${q.path}')">Restaurar</button></td>
+      </tr>`).join('');
+  } catch(e) {}
+}
+
+async function restoreFile(path) {
+  try {
+    await api('/restore', { method: 'POST', body: JSON.stringify({ path }) });
+    fetchAdmin();
+  } catch(e) {}
+}
+
+async function scanControl(action) {
+  try {
+    const d = await api(`/scan/${action}`, { method: 'POST' });
+    const el = document.getElementById('scan-status');
+    el.textContent = d.status || d.error || 'Sin respuesta';
+    el.style.color = action === 'start' ? 'var(--green)' : 'var(--red)';
+  } catch(e) {}
+}
+
+async function lookupPID() {
+  const pid   = document.getElementById('pid-in').value.trim();
+  const errEl = document.getElementById('pid-err');
+  const resEl = document.getElementById('pid-result');
+  errEl.classList.add('hidden');
+  resEl.classList.add('hidden');
+  if (!pid) { errEl.textContent = 'Ingresa un PID válido'; errEl.classList.remove('hidden'); return; }
+  try {
+    const d = await api(`/process/${pid}`);
+    if (d.error) { errEl.textContent = d.error; errEl.classList.remove('hidden'); return; }
+    document.getElementById('r-pid').textContent  = d.pid;
+    document.getElementById('r-name').textContent = d.nombre;
+    document.getElementById('r-cpu').textContent  = d.cpu_time;
+    document.getElementById('r-mem').textContent  = d.mem_kb + ' KB';
+    resEl.classList.remove('hidden');
+  } catch(e) {
+    errEl.textContent = 'Error de conexión';
+    errEl.classList.remove('hidden');
+  }
+}
+
+document.getElementById('pid-in').addEventListener('keydown', e => {
+  if (e.key === 'Enter') lookupPID();
+});
+
+function startPolling() {
+  fetchMetrics(); fetchAlerts(); fetchThreats();
+  timer = setInterval(() => { fetchMetrics(); fetchAlerts(); fetchThreats(); }, REFRESH);
+}
+</script>
+</body>
+</html>

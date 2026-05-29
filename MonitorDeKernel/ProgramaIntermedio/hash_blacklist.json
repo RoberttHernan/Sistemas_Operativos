@@ -1,0 +1,52 @@
+{
+  "signatures": [
+    {
+      "hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "name": "Simulated.Empty.Malware",
+      "severity": "LOW",
+      "description": "Archivo vacio sospechoso"
+    },
+    {
+      "hash": "a87ff679a2f3e71d9181a67b7542122c6b809b2c01c45ef64a4d3f4b5c44b6e1",
+      "name": "Simulated.Adware.Generic",
+      "severity": "LOW",
+      "description": "Adware generico simulado"
+    },
+    {
+      "hash": "1f3870be274f6c49b3e31a0c6728957f8d5b0b9e6eab5abc7e5b3e3a4a2e7c9d",
+      "name": "Simulated.Spyware.Keylogger",
+      "severity": "MEDIUM",
+      "description": "Keylogger simulado"
+    },
+    {
+      "hash": "b14a7b8059d9c055954c92674ce60032b1f8c3c3b2e5f9c4b3a2d1e0f9e8d7c6",
+      "name": "Simulated.Trojan.Downloader",
+      "severity": "MEDIUM",
+      "description": "Troyano descargador simulado"
+    },
+    {
+      "hash": "c4ca4238a0b923820dcc509a6f75849b7a4284a1e24a7c3f3b2d9e8f7a6b5c4d",
+      "name": "Simulated.Worm.Network",
+      "severity": "MEDIUM",
+      "description": "Gusano de red simulado"
+    },
+    {
+      "hash": "d41d8cd98f00b204e9800998ecf8427e3a2f1b0c9d8e7f6a5b4c3d2e1f0a9b8c",
+      "name": "Simulated.Rootkit.Hidden",
+      "severity": "HIGH",
+      "description": "Rootkit de ocultamiento simulado"
+    },
+    {
+      "hash": "aab3238922bcc25a6f606eb525ffdc56df0a8e4e6b9b7e5a8e7f3c2d1b0a9e8f",
+      "name": "Simulated.Ransomware.Encryptor",
+      "severity": "HIGH",
+      "description": "Ransomware encriptador simulado"
+    },
+    {
+      "hash": "9bf31c7ff062936a96d3c8bd1f8f2ff3f9a3c2b1e0d9f8e7a6b5c4d3e2f1a0b9",
+      "name": "Simulated.Backdoor.Listener",
+      "severity": "HIGH",
+      "description": "Backdoor de escucha simulado"
+    }
+  ]
+}
